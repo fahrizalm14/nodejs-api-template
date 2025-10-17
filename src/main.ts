@@ -1,43 +1,51 @@
 import 'reflect-metadata';
-//
+import { container } from 'tsyringe';
+
 import { env } from '@/config';
-import { availableModules, devModeModules } from '@/config/deployment.config';
 import { App } from '@/core/App';
-import { Router } from 'express';
-import path from 'path';
+import { createHttpServer } from '@/core/http/createHttpServer';
+import { createGlobalMiddlewares } from '@/core/http/createMiddlewares';
+import { loadConfiguredModules } from '@/modules/loadModules';
+import { Logger } from '@/shared/utils/logger';
 
-async function bootstrap() {
-  console.log('Bootstrapping Development Monolith...');
-  const activeModules: { prefix: string; router: Router }[] = [];
+/**
+ * Menyiapkan server HTTP, mendaftarkan middleware dan modul, lalu menjalankan aplikasi.
+ */
+async function main() {
+  const logger = container.resolve(Logger);
 
-  for (const moduleName of devModeModules) {
-    const moduleDef = availableModules[moduleName];
-    if (moduleDef) {
-      try {
-        // --- BAGIAN YANG DIPERBAIKI ---
-        // 1. Dapatkan sisa path setelah alias
-        const modulePath = moduleDef.path.replace('@/', '');
+  const httpServer = createHttpServer(env.HTTP_SERVER, logger);
+  const app = new App({
+    server: httpServer,
+    port: env.PORT,
+    logger,
+  });
 
-        // 2. Buat path absolut relatif terhadap DIREKTORI FILE INI
-        //    Ini akan bekerja baik di src/main.ts maupun di dist/main.js
-        const absolutePath = path.resolve(__dirname, modulePath);
+  const middlewares = createGlobalMiddlewares(env.HTTP_SERVER);
+  middlewares.forEach((middleware) => app.registerMiddleware(middleware));
 
-        // 3. Impor menggunakan path absolut yang sudah benar
-        const module = await import(absolutePath);
-        // --- AKHIR PERBAIKAN ---
+  app.registerModule({
+    prefix: '',
+    routes: [
+      {
+        method: 'GET',
+        path: '/health',
+        handler: async () => ({
+          status: 200,
+          body: { status: 'ok' },
+        }),
+      },
+    ],
+  });
 
-        activeModules.push({
-          prefix: `/api/v1/${moduleName}`,
-          router: module.default,
-        });
-      } catch (e) {
-        console.error(`❌ Failed to load module "${moduleName}"`, e);
-      }
-    }
-  }
+  const modules = await loadConfiguredModules(logger);
+  modules.forEach((module) => app.registerModule(module));
 
-  const monolithApp = new App(env.PORT, activeModules);
-  monolithApp.start();
+  await app.start();
 }
 
-bootstrap();
+main().catch((error) => {
+  // eslint-disable-next-line no-console
+  console.error('❌ Failed to start application', error);
+  process.exit(1);
+});

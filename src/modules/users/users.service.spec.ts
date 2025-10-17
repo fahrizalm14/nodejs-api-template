@@ -1,8 +1,7 @@
 import 'reflect-metadata';
 import { container } from 'tsyringe';
-import { UsersService } from '@/modules/users/users.service';
-import { UsersRepository } from '@/modules/users/users.repository';
-import { IUsers } from '@/modules/users/users.interface';
+import { IUsers, USERS_REPOSITORY_TOKEN } from './users.interface';
+import { UsersService } from './users.service';
 
 // 1. Buat mock untuk dependensi (Repository)
 const mockUsersRepository = {
@@ -16,7 +15,7 @@ describe('UsersService', () => {
   // 3. Atur ulang dan daftarkan mock sebelum setiap tes
   beforeEach(() => {
     jest.clearAllMocks();
-    container.register<UsersRepository>(UsersRepository, {
+    container.register(USERS_REPOSITORY_TOKEN, {
       useValue: mockUsersRepository,
     });
     service = container.resolve(UsersService);

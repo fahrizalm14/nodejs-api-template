@@ -1,18 +1,20 @@
-interface ModuleDefinition {
-  path: string;
-}
+import type { ModuleFactory } from '@/core/http/types';
+type ModuleLoader = () => Promise<ModuleFactory>;
+
+export const availableModules: Record<string, ModuleLoader> = {
+  users: async () => (await import('@/modules/users/users.routes')).default,
+  // 'products': async () => (await import('@/modules/products/products.routes')).default,
+};
+
+type AvailableModuleName = keyof typeof availableModules;
+
 interface DeploymentTarget {
   port: number;
-  modules: string[];
+  modules: AvailableModuleName[];
 }
 
-export const availableModules: Record<string, ModuleDefinition> = {
-  // 'products': { path: '@/modules/products/products.routes' },
-  users: { path: '@/modules/users/users.routes' },
-};
-
 export const deploymentTargets: Record<string, DeploymentTarget> = {
-  users: { port: 2001, modules: ['users'] },
+  'main-api': { port: 2001, modules: ['users'] },
 };
 
-export const devModeModules: string[] = ['users'];
+export const devModeModules: AvailableModuleName[] = ['users'];

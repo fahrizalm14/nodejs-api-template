@@ -1,8 +1,26 @@
-import { Router } from 'express';
 import { container } from 'tsyringe';
+
+import { ModuleBuildResult, RouteDefinition } from '@/core/http/types';
 import { UsersController } from '@/modules/users/users.controller';
-import { asyncHandler } from '@/core/middleware/asyncHandler';
-const usersRouter = Router();
+import '@/modules/users/users.container';
+
 const controller = container.resolve(UsersController);
-usersRouter.get('/', asyncHandler(controller.get.bind(controller)));
-export default usersRouter;
+
+const routes: RouteDefinition[] = [
+  {
+    method: 'GET',
+    path: '/',
+    handler: async () => {
+      const users = await controller.listUsers();
+
+      return {
+        status: 200,
+        body: { status: 'success', data: users },
+      };
+    },
+  },
+];
+
+export default function createUsersRoutes(): ModuleBuildResult {
+  return { routes };
+}

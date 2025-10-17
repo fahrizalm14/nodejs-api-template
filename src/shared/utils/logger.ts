@@ -1,14 +1,17 @@
-import { env } from '@/config';
 import pino from 'pino';
 import { singleton } from 'tsyringe';
 
+import { env } from '@/config';
+
 @singleton()
+/**
+ * Pembungkus sederhana untuk logger Pino yang digunakan di seluruh aplikasi.
+ */
 export class Logger {
   private readonly pino: pino.Logger;
 
   constructor() {
     this.pino = pino({
-      // Gunakan pino-pretty untuk log yang lebih mudah dibaca saat development
       transport:
         env.NODE_ENV !== 'production' ? { target: 'pino-pretty' } : undefined,
     });
@@ -27,8 +30,12 @@ export class Logger {
    * @param message Pesan error kustom
    * @param error Objek Error yang asli
    */
-  error(message: string, error: Error) {
-    // Kita sertakan objek error asli untuk mendapatkan stack trace
-    this.pino.error({ err: error }, message);
+  error(message: string, error: unknown) {
+    if (error instanceof Error) {
+      this.pino.error({ err: error }, message);
+      return;
+    }
+
+    this.pino.error({ err: error ?? 'Unknown error' }, message);
   }
 }

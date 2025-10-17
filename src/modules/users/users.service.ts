@@ -1,7 +1,18 @@
-import { injectable, inject } from 'tsyringe';
-import { UsersRepository } from '@/modules/users/users.repository';
+import { inject, injectable } from 'tsyringe';
+
+import {
+  IUsers,
+  IUsersRepository,
+  USERS_REPOSITORY_TOKEN,
+} from '@/modules/users/users.interface';
+
 @injectable()
 export class UsersService {
-  constructor(@inject(UsersRepository) private readonly repo: UsersRepository) {}
-  async findAll() { return this.repo.findAll(); }
+  constructor(
+    @inject(USERS_REPOSITORY_TOKEN) private readonly repository: IUsersRepository,
+  ) {}
+
+  findAll(): Promise<IUsers[]> {
+    return this.repository.findAll();
+  }
 }

@@ -1,207 +1,347 @@
-# Solid Node.js API - Arsitektur Modular & Fleksibel
+# Teman API Node.js – Template Modular Modern
 
-Ini adalah template proyek API Node.js yang dibangun dengan arsitektur **Modular Monolith** yang solid, modern, dan siap untuk dikembangkan menjadi microservice. Proyek ini menggunakan TypeScript dan berfokus pada *Developer Experience* (DX) yang tinggi dengan otomasi dan praktik terbaik.
+## Daftar Isi
+- [Ringkasan](#ringkasan)
+- [Fitur Utama](#fitur-utama)
+- [Arsitektur & Cara Kerja](#arsitektur--cara-kerja)
+- [Dependency Injection](#dependency-injection)
+  - [Konsep DI di Template Ini](#konsep-di-di-template-ini)
+  - [Diagram Alur DI](#diagram-alur-di)
+  - [Tips Menggunakan DI](#tips-menggunakan-di)
+- [Struktur Direktori](#struktur-direktori)
+- [Modul Bawaan](#modul-bawaan)
+- [Konfigurasi Lingkungan](#konfigurasi-lingkungan)
+- [Siklus Bootstrap](#siklus-bootstrap)
+- [Middleware & Rate Limiter](#middleware--rate-limiter)
+- [Fungsi Penting](#fungsi-penting)
+- [Penggunaan Harian](#penggunaan-harian)
+  - [Pengembangan](#pengembangan)
+  - [Pengujian](#pengujian)
+  - [Build Produksi](#build-produksi)
+- [Automasi Modul](#automasi-modul)
+- [Deployment](#deployment)
+  - [Docker](#docker)
+  - [PM2](#pm2)
+- [FAQ](#faq)
+- [Kontribusi](#kontribusi)
+- [Lisensi](#lisensi)
 
------
+---
 
-## ✨ Fitur Utama
+## Ringkasan
+Templat ini membantu Anda membangun REST API Node.js berbasis TypeScript dengan arsitektur modular, dependency injection, dan pilihan framework HTTP (Express atau Fastify). Seluruh komponen dirancang agar plug-and-play; Anda cukup memilih middleware, mendefinisikan modul, lalu menjalankan bootstrap.
 
-* **Modular Monolith**: Setiap fitur aplikasi (modul) terisolasi dalam direktorinya sendiri, siap untuk diangkat menjadi microservice.
-* **Dependency Injection**: Menggunakan **Tsyringe** untuk *Inversion of Control* (IoC), membuat kode sangat *testable* dan terstruktur.
-* **Configuration-Driven**: Arsitektur yang dikendalikan oleh file `deployment.config.ts` untuk fleksibilitas maksimal saat development dan production.
-* **Skrip Otomatis**: Dilengkapi dengan skrip untuk membuat dan menghapus modul secara otomatis, mempercepat alur kerja.
-* **Build Produksi Otomatis**: Skrip untuk menghasilkan `Dockerfile` secara otomatis untuk setiap target deploy (microservice atau mini-monolith).
-* **Praktik Terbaik**: Menggunakan TypeScript, ESLint, Prettier, dan logging terstruktur dengan Pino.
-* **Siap Pakai**: Termasuk unit test dasar dengan Jest yang dibuat secara otomatis.
+---
 
------
+## Fitur Utama
+- **Modular Monolith**: Setiap fitur ditempatkan dalam modul independen, siap dipecah menjadi microservice.
+- **Multi HTTP Provider**: Ganti `HTTP_SERVER=express|fastify` untuk beralih framework tanpa menyentuh kode modul.
+- **Dependency Injection via Tsyringe**: Kontruksi service yang eksplisit dan mudah diuji.
+- **Bootstrap Terpusat**: File `main.ts` hanya mengatur middleware & modul, sedangkan kelas `App` menangani lifecycle.
+- **Middleware Plug-and-Play**: Daftarkan middleware per provider dengan satu fungsi utilitas.
+- **Rate Limiting**: Aktivasi otomatis via middleware global atau per modul.
+- **Automasi Modul**: CLI `pnpm create:module` membuat struktur modul lengkap dengan test.
+- **Infra-Ready**: Konfigurasi jelas, logger Pino, script build deploy Docker.
+- **Integrasi Database Fleksibel**: Template menyertakan contoh repository Prisma sekaligus mendukung implementasi lain (in-memory, REST, dsb) tanpa mengubah service.
 
-## 🛠️ Prasyarat
+---
 
-* **Node.js**: `v20.x` atau lebih tinggi.
-* **pnpm**: Manajer paket yang efisien. Instal dengan `npm install -g pnpm`.
+## Arsitektur & Cara Kerja
+1. **Entry Point (`src/main.ts`)**
+   - Memuat variabel lingkungan (`env`).
+   - Membuat server HTTP sesuai provider.
+   - Membuat instance `App` dan mendaftarkan middleware + modul (termasuk route health).
+   - Menjalankan `app.start()`.
 
------
+2. **`App` Lifecycle (`src/core/App.ts`)**
+   - Menyimpan middleware, modul, dan cleanup callback.
+   - Saat start:
+     - Mendaftarkan middleware ke server.
+     - Mendaftarkan modul ke server.
+     - Mengikat sinyal shutdown.
+     - Memerintahkan server listen pada port.
 
-## 🚀 Instalasi & Penggunaan
+3. **HTTP Abstraction (`src/core/http`)**
+   - `ExpressHttpServer` dan `FastifyHttpServer` mengimplementasikan kontrak `HttpServer`.
+   - Wrapper menangani konversi `RouteHandler` internal ke handler framework.
 
-1. **Clone repository ini (jika sudah ada di repo):**
+4. **Modul**
+   - Memperluas route dengan prefix `api/v1/<modul>`.
+   - Bisa mengembalikan opsi (contoh rate limit per modul).
 
-    ```bash
-    git clone [URL_REPOSITORY_ANDA]
-    cd [NAMA_FOLDER]
-    ```
+---
 
-2. **Instal semua dependensi:**
+## Dependency Injection
+### Konsep DI di Template Ini
+- Menggunakan `tsyringe` untuk mendaftarkan service, controller, repository, dan provider infrastruktur seperti Prisma.
+- Mengandalkan decorator `@injectable()` / `@singleton()` dan constructor injection sehingga dependency tidak pernah diakses secara global.
+- Kontrak dipresentasikan sebagai interface + token (contoh: `IUsersRepository` + `USERS_REPOSITORY_TOKEN`) agar implementasi mudah diganti tanpa menyentuh service.
+- Registrasi binding dilakukan di berkas container per modul (contoh: `users.container.ts`) supaya struktur modul tetap terisolasi.
 
-    ```bash
-    pnpm install
-    ```
-
-3. **Siapkan Environment Variables:**
-    Salin file `.env.example` menjadi `.env` dan sesuaikan nilainya jika perlu.
-
-    ```bash
-    cp .env.example .env
-    ```
-
------
-
-## 📂 Struktur Proyek
-
+### Diagram Alur DI
 ```
-/
-|-- /dist                   # Output hasil kompilasi (JavaScript)
-|-- /scripts                # Skrip otomatisasi (create/delete module, etc.)
-|-- /src
-|   |-- /config             # Konfigurasi aplikasi, termasuk deployment.config.ts
-|   |-- /core               # Fondasi server (App, Middleware)
-|   |-- /modules            # Semua modul/fitur aplikasi (users, products, etc.)
-|   |-- /shared             # Kode yang bisa dipakai bersama (Logger, utils)
-|   |-- main.ts             # Titik masuk utama aplikasi untuk mode development
-|-- .env                    # Environment variables (tidak di-commit)
-|-- package.json
-|-- tsconfig.json
-```
+UsersController @injectable()
+  └── constructor(@inject(UsersService))
 
------
+UsersService @injectable()
+  └── constructor(@inject(USERS_REPOSITORY_TOKEN) IUsersRepository)
 
-## ▶️ Perintah Utama
+users.container.ts
+  └── container.registerSingleton(USERS_REPOSITORY_TOKEN, PrismaUsersRepository)
 
-Semua perintah dijalankan dari direktori root proyek.
+PrismaUsersRepository @injectable()
+  └── constructor(@inject(PrismaService)) -> prisma.user.findMany()
 
-* **Menjalankan Server Development:**
-    Server akan berjalan di port yang ditentukan di `.env` (default: 3000) dan akan otomatis restart saat ada perubahan file.
-
-    ```bash
-    pnpm dev
-    ```
-
-* **Membuat Build Produksi:**
-    Mengkompilasi semua kode TypeScript ke JavaScript di dalam folder `dist`.
-
-    ```bash
-    pnpm build
-    ```
-
-* **Menjalankan Server Produksi:**
-    Menjalankan aplikasi dari file hasil kompilasi.
-
-    ```bash
-    pnpm start
-    ```
-
-* **Menjalankan Unit Tests:**
-    Menjalankan semua file tes (`.spec.ts`) dengan Jest.
-
-    ```bash
-    pnpm test
-    ```
-
------
-
-## 🤖 Skrip Otomatisasi
-
-Proyek ini dilengkapi skrip untuk mempercepat pengembangan.
-
-* **Membuat Modul Baru:**
-    Perintah ini akan memandu Anda secara interaktif untuk membuat struktur file lengkap (controller, service, repository, dll.) untuk modul baru dan mendaftarkannya secara otomatis.
-
-    ```bash
-    pnpm create:module
-    ```
-
-* **Menghapus Modul:**
-    Menghapus direktori modul dan membersihkan referensinya dari `deployment.config.ts` secara aman.
-
-    ```bash
-    pnpm delete:module
-    ```
-
-* **Membuat Artefak Deploy (Dockerfile):**
-    Perintah ini akan membaca `deployment.config.ts` dan menghasilkan `Dockerfile` serta file *entrypoint* untuk setiap target deploy yang telah Anda definisikan.
-
-    ```bash
-    pnpm build:deploys
-    ```
-
-    Hasilnya adalah file seperti `Dockerfile.main-api`, `Dockerfile.users-ms`, dll. di root proyek.
-
------
-
-## ⚙️ Konfigurasi Arsitektur (`deployment.config.ts`)
-
-File `src/config/deployment.config.ts` adalah "panel kontrol" dari aplikasi Anda. File ini mengontrol modul mana yang aktif saat development dan bagaimana semua modul akan dikelompokkan dan di-deploy ke production.
-
-File ini memiliki tiga bagian utama:
-
-### 1\. `availableModules`
-
-Bagian ini adalah **katalog** dari semua modul yang ada di dalam proyek Anda. Setiap modul yang Anda buat **harus** didaftarkan di sini. Skrip `pnpm create:module` akan melakukannya secara otomatis.
-
-```typescript
-export const availableModules: Record<string, ModuleDefinition> = {
-  // Setiap modul terdaftar dengan nama dan path ke filenya
-  users: { path: '@/modules/users/user.routes' },
-  products: { path: '@/modules/products/product.routes' },
-};
+PrismaService @singleton()
+  └── PrismaClient (dikonfigurasi via env)
 ```
 
-### 2\. `deploymentTargets`
+### Tips Menggunakan DI
+- Registrasi otomatis via decorator sudah cukup; hindari container manual kecuali untuk pengujian.
+- Gunakan interface untuk kontrak repository bila akan mengganti implementasi.
+- Dalam test, gunakan `container.register` dengan `useValue` atau `useClass` untuk mengganti dependensi.
+- Pastikan memanggil `container.clearInstances()` bila membuat container custom di test.
+- Jika ingin menambahkan integrasi eksternal (misal S3 atau Redis), buat abstraksi baru (mis. `StorageService`), tandai dengan `@injectable()`, lalu injeksikan ke service lain. Di test, Anda bisa mengganti `StorageService` dengan mock menggunakan `container.register(StorageService, { useValue: mockObj })`.
+- Hindari mengakses container secara global di dalam fungsi. Lebih baik injeksikan dependensi melalui konstruktor agar komponen tetap testable dan tidak bergantung pada state global.
 
-Bagian ini mendefinisikan **unit-unit yang akan Anda deploy** di production. Setiap "target" akan menghasilkan satu `Dockerfile` dan berjalan di port-nya sendiri. Di sinilah Anda menentukan mana yang menjadi microservice dan mana yang menjadi monolith.
+### Integrasi Repository Database
+- Setiap modul bisa menyediakan beberapa implementasi repository (misal in-memory, REST client, Prisma). Penamaan `users.prisma.repository.ts` menegaskan bahwa implementasi tersebut mengandalkan Prisma; sementara nama generik `users.repository.ts` cocok untuk implementasi default.
+- `users.container.ts` bertugas mengikat kontrak `USERS_REPOSITORY_TOKEN` ke implementasi yang dipilih. Anda cukup mengganti binding ini bila ingin repository lain tanpa mengubah service ataupun controller.
+- Infrastruktur bersama (contoh `PrismaService`) ditaruh di `src/shared/infra/...` dan disediakan sebagai dependency tersendiri sehingga modul lain dapat menggunakannya dengan tetap memenuhi prinsip Single Responsibility & Dependency Inversion.
+- Untuk menambahkan repository alternatif, buat file baru (contoh `users.in-memory.repository.ts`) yang mengimplementasikan `IUsersRepository`, lalu perbarui binding pada container modul.
 
-```typescript
-export const deploymentTargets: Record<string, DeploymentTarget> = {
-  // CONTOH 1: Sebuah "mini-monolith"
-  // Target 'main-api' akan menjalankan service products dan orders bersamaan.
-  'main-api': {
-    port: 3000,
-    modules: ['products', 'orders'],
-  },
-  // CONTOH 2: Sebuah microservice
-  // Target 'users-ms' hanya akan menjalankan service users.
-  'users-ms': {
-    port: 3001,
-    modules: ['users'],
-  },
-};
+Contoh integrasi S3 menggunakan DI:
+
+```ts
+// storage/StorageService.ts
+import { injectable } from 'tsyringe';
+
+@injectable()
+export class StorageService {
+  async upload(fileName: string, buffer: Buffer): Promise<string> {
+    // Integrasi S3 (contoh sederhana)
+    return `https://s3.example.com/${fileName}`;
+  }
+}
+
+// modules/reports/reports.service.ts
+import { inject, injectable } from 'tsyringe';
+import { StorageService } from '@/storage/StorageService';
+
+@injectable()
+export class ReportsService {
+  constructor(@inject(StorageService) private readonly storage: StorageService) {}
+
+  async generateReport(payload: Buffer): Promise<string> {
+    const fileName = `report-${Date.now()}.pdf`;
+    return this.storage.upload(fileName, payload);
+  }
+}
+
+// modules/reports/reports.service.spec.ts
+import 'reflect-metadata';
+import { container } from 'tsyringe';
+import { ReportsService } from './reports.service';
+import { StorageService } from '@/storage/StorageService';
+
+describe('ReportsService', () => {
+  it('mengunggah report ke storage', async () => {
+    const uploadMock = jest.fn().mockResolvedValue('https://mock/report.pdf');
+    container.register(StorageService, { useValue: { upload: uploadMock } });
+
+    const service = container.resolve(ReportsService);
+    const url = await service.generateReport(Buffer.from('dummy'));
+
+    expect(uploadMock).toHaveBeenCalledTimes(1);
+    expect(url).toBe('https://mock/report.pdf');
+  });
+});
 ```
 
-* Nama kunci (`main-api`, `users-ms`) akan digunakan untuk menamai `Dockerfile` yang dihasilkan.
+---
 
-### 3\. `devModeModules`
-
-Bagian ini adalah daftar modul yang ingin Anda **jalankan secara bersamaan** saat mode development (`pnpm dev`).
-
-```typescript
-export const devModeModules: string[] = [
-  'users',
-  'products',
-  'orders'
-];
+## Struktur Direktori
+```
+src/
+  config/            # Konfigurasi environment
+  core/
+    App.ts           # Lifecycle aplikasi
+    http/
+      createHttpServer.ts
+      createMiddlewares.ts
+      ExpressHttpServer.ts
+      FastifyHttpServer.ts
+    middleware/      # Handler umum (error, dll)
+  modules/
+    loadModules.ts   # Loader modul berdasarkan konfigurasi
+    users/           # Contoh modul users
+    whatsapp/        # Contoh modul whatsapp
+  shared/
+    utils/logger.ts  # Logger Pino
+  main.ts            # Entry point
 ```
 
-* Anda bisa memberi komentar pada modul di daftar ini untuk menonaktifkannya sementara saat development.
+---
 
------
+## Struktur Modul
 
-## 🐳 Docker
+Agar konsisten, setiap modul sebaiknya memuat berkas berikut:
 
-Setelah menjalankan `pnpm build:deploys`, Anda bisa membangun dan menjalankan image Docker untuk setiap target deploy.
+- **`*.routes.ts`** – Mendefinisikan prefix modul serta daftar rute yang diekspos.
+- **`*.controller.ts`** – Mengelola request/response dan memanggil service yang relevan.
+- **`*.service.ts`** – Menampung logika bisnis utama modul.
+- **`*.repository.ts` / `*.prisma.repository.ts`** – Layer akses data; bebas memilih penamaan sesuai backend yang digunakan.
+- **`*.interface.ts`** – Deklarasi tipe data yang digunakan modul.
+- **`*.service.spec.ts`** – Unit test service dengan contoh mocking dependency injection.
+- **`*.container.ts`** – Titik registrasi dependency modul (binding interface ke implementasi).
 
-**Contoh untuk target `users-ms`:**
+> Gunakan `pnpm create:module` untuk menghasilkan kerangka modul baru, lalu daftar namanya pada `availableModules` dan `devModeModules` jika ingin langsung aktif saat development.
 
-1. **Build Image:**
+---
 
-    ```bash
-    docker build -f Dockerfile.users-ms -t users-microservice .
-    ```
+## Konfigurasi Lingkungan
+Variabel utama didefinisikan di `src/config/index.ts` dan tervalidasi menggunakan Zod.
 
-2. **Jalankan Kontainer:**
+| Variabel       | Default     | Deskripsi                                   |
+| -------------- | ----------- | ------------------------------------------- |
+| `NODE_ENV`     | development | Lingkungan aplikasi                         |
+| `PORT`         | 3000        | Port aplikasi                               |
+| `HTTP_SERVER`  | express     | Provider HTTP (`express`/`fastify`)         |
+| `DATABASE_URL` | file:./dev.db | Connection string Prisma (SQLite default) |
 
-    ```bash
-    docker run -p 3001:3001 -d users-microservice
-    ```
+Contoh `.env`:
+```dotenv
+NODE_ENV=development
+PORT=3000
+HTTP_SERVER=fastify
+DATABASE_URL=file:./dev.db
+```
 
-    Service `users` sekarang berjalan di `http://localhost:3001`.
+File contoh tersedia di `.env.example`; salin ke `.env` lalu sesuaikan nilainya.
+
+---
+
+## Siklus Bootstrap
+1. `main.ts` memanggil `createHttpServer` dengan logger.
+2. Buat instance `App` (menerima server, port, logger).
+3. `createGlobalMiddlewares` mengembalikan daftar middleware sesuai provider.
+4. `loadConfiguredModules` memuat modul dari `devModeModules`.
+5. `app.start()` mengaktifkan middleware, modul, sinyal shutdown, lalu listen.
+
+---
+
+## Middleware & Rate Limiter
+- **Express**: Menggunakan `cors()` dan `rateLimit()` default global.
+- **Fastify**: Registrasi plugin `@fastify/cors` dan `@fastify/rate-limit`.
+- Middleware tambahan dapat diregister di `main.ts` melalui `app.registerMiddleware({...})`.
+- Rate limit per modul dapat ditambahkan via `module.options.rateLimit` pada file route modul.
+- **Menonaktifkan CORS**: Hapus middleware CORS pada array `middlewares` di `main.ts`.
+- **Menonaktifkan Rate Limit**: Hapus middleware limiter dari `main.ts` dan hilangkan konfigurasi `options.rateLimit` pada modul.
+
+Contoh rate limit per modul (`users.routes.ts`):
+```ts
+export default function createUsersRoutes(): ModuleBuildResult {
+  return {
+    routes,
+    options: { rateLimit: { windowMs: 60_000, max: 100 } },
+  };
+}
+```
+
+---
+
+## Fungsi Penting
+| Lokasi                                   | Fungsi                                                         |
+|-----------------------------------------|----------------------------------------------------------------|
+| `src/main.ts`                            | Entry point aplikasi                                            |
+| `App.registerMiddleware`                | Menambahkan middleware global                                  |
+| `App.registerModule`                    | Menambahkan modul (prefix + routes)                            |
+| `App.start`                             | Menjalankan server dan mengikat shutdown hook                   |
+| `createHttpServer(provider, logger)`    | Membuat instance server Express/Fastify                        |
+| `createGlobalMiddlewares(provider)`     | Menghasilkan array middleware untuk provider tertentu          |
+| `loadConfiguredModules(logger)`         | Memuat modul yang terdaftar di `deployment.config.ts`          |
+| `PrismaUsersRepository.findAll`         | Contoh repository berbasis Prisma                              |
+| `users.container.ts`                    | Mengikat kontrak `USERS_REPOSITORY_TOKEN` ke implementasi      |
+| `Logger.info/error`                     | Helper logging dengan Pino                                     |
+
+---
+
+## Penggunaan Harian
+### Pengembangan
+```bash
+pnpm dev
+```
+- Jalankan server dengan watch mode (`ts-node-dev`).
+- Endpoint health: `GET /health`.
+
+### Pengujian
+```bash
+pnpm test
+```
+- Menjalankan Jest unit test (contoh: service users & whatsapp).
+
+### Build Produksi
+```bash
+pnpm build
+```
+- Menghasilkan bundel di `dist/` menggunakan `tsup`.
+- Jalankan hasil build: `pnpm start`.
+
+---
+
+## Automasi Modul
+```bash
+pnpm create:module
+```
+- Wizard interaktif akan membuat controller, service, repository, route, dan test.
+- Setelah selesai, tambahkan modul ke `availableModules` dan `devModeModules` (jika perlu).
+
+---
+
+## Deployment
+### Docker
+1. Build artefak deploy: `pnpm build:deploys`
+2. Masuk ke salah satu target: `cd deploys/main-api`
+3. Build image: `docker build -t main-api .`
+4. Jalankan container: `docker run --env-file .env.production -p 3000:3000 main-api`
+
+Tips:
+- Pastikan `.env.production` berisi konfigurasi yang benar.
+- Gunakan registry privat bila dibutuhkan, contoh `docker push ghcr.io/<org>/main-api:tag`.
+
+### PM2
+1. Build aplikasi: `pnpm build`
+2. Jalankan menggunakan PM2:
+   ```bash
+   pm2 start dist/main.js --name api-template
+   pm2 logs api-template
+   pm2 save
+   ```
+3. Untuk restart otomatis saat update:
+   ```bash
+   pm2 restart api-template
+   ```
+
+---
+
+## FAQ
+**Bisakah menambahkan basis data?**
+Ya. Contoh modul `users` sudah menggunakan Prisma melalui `PrismaUsersRepository`. Jika ingin backend lain (REST, in-memory untuk test, ORM berbeda), buat implementasi baru untuk `IUsersRepository` dan ubah binding di `users.container.ts`.
+
+**Bagaimana menambahkan middleware custom?**
+Di `main.ts`, panggil `app.registerMiddleware({ express: middlewareExpress })` atau `app.registerMiddleware({ fastify: middlewareFastify })` sesuai provider.
+
+**Bisakah menjalankan Express & Fastify bersamaan?**
+Tidak secara simultan. Pilih satu provider melalui variabel `HTTP_SERVER`.
+
+---
+
+## Kontribusi
+- Fork repo, buat branch fitur, lalu pull request.
+- Sertakan deskripsi perubahan dan tambahkan test bila relevan.
+- Gunakan format commit konvensional bila memungkinkan.
+
+---
+
+## Lisensi
+Dirilis di bawah lisensi [MIT](LICENSE).

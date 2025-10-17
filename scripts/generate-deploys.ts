@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { deploymentTargets } from '../dist/config/deployment.config.js';
+import { deploymentTargets } from '../src/config/deployment.config';
 
 /**
  * (BARU) Template untuk package.json yang akan di-generate untuk setiap service.
