@@ -170,4 +170,26 @@ export class ExpressHttpServer implements HttpServer {
       this.errorHandlers.push(handler as ErrorRequestHandler);
     }
   }
+
+  /**
+   * Menghentikan server Express secara elegan.
+   */
+  async stop(): Promise<void> {
+    if (!this.server) {
+      return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      this.server?.close((error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      });
+    });
+
+    this.server = undefined;
+    this.logger.info('🛑 Express server closed');
+  }
 }

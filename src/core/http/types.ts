@@ -64,4 +64,5 @@ export interface HttpServer {
   registerGlobalMiddleware(middleware: GlobalMiddleware): void;
   setErrorHandler(handler: unknown): void;
   start(port: number): Promise<void>;
+  stop(): Promise<void>;
 }

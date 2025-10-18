@@ -43,6 +43,9 @@ export class App {
     this.port = port;
     this.logger = logger;
     this.shutdownSignals = shutdownSignals;
+    this.registerCleanup(async () => {
+      await this.server.stop();
+    });
   }
 
   /**

@@ -101,15 +101,23 @@ export class FastifyHttpServer implements HttpServer {
    * - Memulai proses listen
    */
   async start(port: number): Promise<void> {
-    for (const middleware of this.globalMiddlewares) {
-      await middleware(this.app);
-    }
+   for (const middleware of this.globalMiddlewares) {
+     await middleware(this.app);
+   }
 
-    for (const module of this.modules) {
+   for (const module of this.modules) {
       this.registerModule(module);
     }
     await this.app.ready();
     await this.app.listen({ port, host: '0.0.0.0' });
     this.logger.info(`🚀 Fastify server listening on http://localhost:${port}`);
+  }
+
+  /**
+   * Menutup instance Fastify.
+   */
+  async stop(): Promise<void> {
+    await this.app.close();
+    this.logger.info('🛑 Fastify server closed');
   }
 }
