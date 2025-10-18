@@ -5,7 +5,7 @@
   "main": "dist/main.js",
   "scripts": {
     "clean": "rimraf dist deploys Dockerfile.* tsconfig.tsbuildinfo",
-    "dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only src/main.ts",
+    "dev": "tsx --watch src/main.ts",
     "build": "pnpm clean && tsup",
     "start": "node dist/main.js",
     "start:entrypoint": "node dist/entrypoint/entrypoint.js",
@@ -57,7 +57,6 @@
     "prisma": "^6.17.1",
     "rimraf": "^6.0.1",
     "ts-jest": "^29.4.1",
-    "ts-node-dev": "^2.0.0",
     "tsc-alias": "^1.8.16",
     "tsconfig-paths": "^4.2.0",
     "tsup": "^8.5.0",
