@@ -8,6 +8,7 @@ import {
   ModuleDefinition,
   RouteDefinition,
   RouteHandler,
+  SocketAdapter,
 } from '@/core/http/types';
 import { Logger } from '@/shared/utils/logger';
 
@@ -21,6 +22,7 @@ export class ExpressHttpServer implements HttpServer {
   private readonly errorHandlers: ErrorRequestHandler[] = [];
   private readonly globalMiddlewares: RequestHandler[] = [];
   private readonly modules: ModuleDefinition[] = [];
+  private readonly socketAdapters: SocketAdapter[] = [];
 
   /**
    * Menginisialisasi Express dengan konfigurasi dasar (JSON parser dan disabled x-powered-by).
@@ -117,6 +119,13 @@ export class ExpressHttpServer implements HttpServer {
   }
 
   /**
+   * Menyimpan adapter socket yang akan dijalankan setelah server aktif.
+   */
+  registerSocketAdapter(adapter: SocketAdapter): void {
+    this.socketAdapters.push(adapter);
+  }
+
+  /**
    * Menjalankan server Express dengan urutan:
    * - Pasang middleware global
    * - Panggil modul yang belum diregistrasikan
@@ -159,6 +168,8 @@ export class ExpressHttpServer implements HttpServer {
       });
     });
 
+    await this.initializeSocketAdapters();
+
     this.logger.info(`🚀 Express server listening on http://localhost:${port}`);
   }
 
@@ -179,6 +190,8 @@ export class ExpressHttpServer implements HttpServer {
       return;
     }
 
+    await this.shutdownSocketAdapters();
+
     await new Promise<void>((resolve, reject) => {
       this.server?.close((error) => {
         if (error) {
@@ -191,5 +204,28 @@ export class ExpressHttpServer implements HttpServer {
 
     this.server = undefined;
     this.logger.info('🛑 Express server closed');
+  }
+
+  /**
+   * Menjalankan seluruh adapter socket yang terdaftar.
+   */
+  private async initializeSocketAdapters(): Promise<void> {
+    if (!this.server) {
+      return;
+    }
+
+    for (const adapter of this.socketAdapters) {
+      await adapter.onReady(this.server);
+      this.logger.info('🔌 Socket adapter ready (express)');
+    }
+  }
+
+  /**
+   * Memanggil hook shutdown untuk setiap adapter socket sebelum server berhenti.
+   */
+  private async shutdownSocketAdapters(): Promise<void> {
+    for (const adapter of this.socketAdapters) {
+      await adapter.onShutdown?.();
+    }
   }
 }

@@ -1,3 +1,5 @@
+import type http from 'http';
+
 import { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { Request, RequestHandler, Response } from 'express';
 
@@ -59,10 +61,16 @@ export interface ModuleDefinition extends ModuleBuildResult {
   prefix: string;
 }
 
+export interface SocketAdapter {
+  onReady(server: http.Server): Promise<void> | void;
+  onShutdown?(): Promise<void> | void;
+}
+
 export interface HttpServer {
   register(module: ModuleDefinition): void;
   registerGlobalMiddleware(middleware: GlobalMiddleware): void;
   setErrorHandler(handler: unknown): void;
   start(port: number): Promise<void>;
   stop(): Promise<void>;
+  registerSocketAdapter?(adapter: SocketAdapter): void;
 }

@@ -9,6 +9,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   HTTP_SERVER: z.enum(['express', 'fastify']).default('express'),
   DATABASE_URL: z.string().min(1).default('file:./dev.db'),
+  SOCKET_ENABLED: z.coerce.boolean().default(false),
 });
 
 const parsedEnv = envSchema.safeParse(process.env);

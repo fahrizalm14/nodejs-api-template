@@ -5,6 +5,7 @@ import { env } from '@/config';
 import { App } from '@/core/App';
 import { createHttpServer } from '@/core/http/createHttpServer';
 import { createGlobalMiddlewares } from '@/core/http/createMiddlewares';
+import { createSocketIoAdapter, SOCKET_IO_SERVER_TOKEN } from '@/core/socket/socketIoAdapter';
 import { loadConfiguredModules } from '@/modules/loadModules';
 import { Logger } from '@/shared/utils/logger';
 
@@ -20,6 +21,15 @@ async function main() {
     port: env.PORT,
     logger,
   });
+
+  if (env.SOCKET_ENABLED && httpServer.registerSocketAdapter) {
+    const socketAdapter = createSocketIoAdapter(logger, {
+      configure: (io) => {
+        container.registerInstance(SOCKET_IO_SERVER_TOKEN, io);
+      },
+    });
+    httpServer.registerSocketAdapter(socketAdapter);
+  }
 
   const middlewares = createGlobalMiddlewares(env.HTTP_SERVER);
   middlewares.forEach((middleware) => app.registerMiddleware(middleware));

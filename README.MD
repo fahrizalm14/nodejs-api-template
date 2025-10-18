@@ -13,6 +13,7 @@
 - [Konfigurasi Lingkungan](#konfigurasi-lingkungan)
 - [Siklus Bootstrap](#siklus-bootstrap)
 - [Middleware & Rate Limiter](#middleware--rate-limiter)
+- [Socket Opsional](#socket-opsional)
 - [Fungsi Penting](#fungsi-penting)
 - [Penggunaan Harian](#penggunaan-harian)
   - [Pengembangan](#pengembangan)
@@ -202,12 +203,13 @@ Agar konsisten, setiap modul sebaiknya memuat berkas berikut:
 ## Konfigurasi Lingkungan
 Variabel utama didefinisikan di `src/config/index.ts` dan tervalidasi menggunakan Zod.
 
-| Variabel       | Default     | Deskripsi                                   |
-| -------------- | ----------- | ------------------------------------------- |
-| `NODE_ENV`     | development | Lingkungan aplikasi                         |
-| `PORT`         | 3000        | Port aplikasi                               |
-| `HTTP_SERVER`  | express     | Provider HTTP (`express`/`fastify`)         |
-| `DATABASE_URL` | file:./dev.db | Connection string Prisma (SQLite default) |
+| Variabel         | Default       | Deskripsi                                         |
+| ---------------- | ------------- | ------------------------------------------------- |
+| `NODE_ENV`       | development   | Lingkungan aplikasi                               |
+| `PORT`           | 3000          | Port aplikasi                                     |
+| `HTTP_SERVER`    | express       | Provider HTTP (`express`/`fastify`)               |
+| `DATABASE_URL`   | file:./dev.db | Connection string Prisma (SQLite default)         |
+| `SOCKET_ENABLED` | false         | Aktifkan integrasi Socket.IO ketika diset `true`  |
 
 Contoh `.env`:
 ```dotenv
@@ -215,6 +217,7 @@ NODE_ENV=development
 PORT=3000
 HTTP_SERVER=fastify
 DATABASE_URL=file:./dev.db
+SOCKET_ENABLED=false
 ```
 
 File contoh tersedia di `.env.example`; salin ke `.env` lalu sesuaikan nilainya.
@@ -250,6 +253,30 @@ export default function createUsersRoutes(): ModuleBuildResult {
 
 ---
 
+## Socket Opsional
+- **Aktifkan** dengan menyetel `SOCKET_ENABLED=true`. Saat aktif, `main.ts` mendaftarkan adapter Socket.IO yang beroperasi di atas server HTTP yang sama.
+- **Gunakan di modul** melalui DI: token `SOCKET_IO_SERVER_TOKEN` mengekspos instance `SocketIoServer`. Injeksi via constructor:
+  ```ts
+  import { inject, injectable } from 'tsyringe';
+  import type { SocketIoServer } from '@/core/socket/socketIoAdapter';
+  import { SOCKET_IO_SERVER_TOKEN } from '@/core/socket/socketIoAdapter';
+
+  @injectable()
+  export class NotificationsService {
+    constructor(
+      @inject(SOCKET_IO_SERVER_TOKEN)
+      private readonly io: SocketIoServer,
+    ) {}
+
+    broadcast(message: string) {
+      this.io.emit('notifications:new', { message });
+    }
+  }
+  ```
+- **Nonaktifkan** dengan membiarkan `SOCKET_ENABLED=false` (default) atau menghapus variabel tersebut. Adapter tidak akan didaftarkan sehingga modul tetap berjalan tanpa dependensi socket.
+
+---
+
 ## Fungsi Penting
 | Lokasi                                   | Fungsi                                                         |
 |-----------------------------------------|----------------------------------------------------------------|
@@ -271,7 +298,7 @@ export default function createUsersRoutes(): ModuleBuildResult {
 ```bash
 pnpm dev
 ```
-- Jalankan server dengan watch mode (`ts-node-dev`).
+- Jalankan server dengan watch mode (menggunakan `tsx --watch`).
 - Endpoint health: `GET /health`.
 
 ### Pengujian
