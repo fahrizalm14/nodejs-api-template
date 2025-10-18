@@ -1,6 +1,8 @@
 import fs from 'fs/promises';
-import inquirer from 'inquirer';
 import path from 'path';
+import inquirer from 'inquirer';
+
+import { formatWithPrettier } from './utils/prettier';
 
 type RepositoryOption = 'in-memory' | 'prisma';
 
@@ -260,7 +262,8 @@ async function createModule() {
 
   for (const file of files) {
     const targetPath = path.join(moduleDir, file.fileName);
-    await fs.writeFile(targetPath, file.contents);
+    const formattedContents = await formatWithPrettier(targetPath, file.contents);
+    await fs.writeFile(targetPath, formattedContents);
     console.log(` ✓ Created ${path.relative(process.cwd(), targetPath)}`);
   }
 

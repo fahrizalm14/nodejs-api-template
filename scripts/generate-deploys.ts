@@ -2,6 +2,8 @@ import fs from 'fs/promises';
 import path from 'path';
 import { deploymentTargets } from '../src/config/deployment.config';
 
+import { formatWithPrettier } from './utils/prettier';
+
 /**
  * (BARU) Template untuk package.json yang akan di-generate untuk setiap service.
  * Skrip 'start' sekarang menunjuk ke file main.js yang sesuai.
@@ -62,6 +64,11 @@ CMD ["pnpm", "start"]
 
 const getEnvTemplate = (port: number) => `NODE_ENV=production\nPORT=${port}`;
 
+const writeFormattedFile = async (filePath: string, contents: string) => {
+  const formattedContents = await formatWithPrettier(filePath, contents);
+  await fs.writeFile(filePath, formattedContents);
+};
+
 /**
  * Fungsi utama skrip.
  */
@@ -86,7 +93,7 @@ async function generateFiles() {
       targetName,
       prodDependencies,
     );
-    await fs.writeFile(
+    await writeFormattedFile(
       path.join(targetDir, 'package.json'),
       packageJsonContent,
     );
@@ -94,12 +101,18 @@ async function generateFiles() {
 
     // 2. Generate file .env.production
     const envContent = getEnvTemplate(config.port);
-    await fs.writeFile(path.join(targetDir, '.env.production'), envContent);
+    await writeFormattedFile(
+      path.join(targetDir, '.env.production'),
+      envContent,
+    );
     console.log(` ✓ .env.production created in ${targetDir}`);
 
     // 3. Generate Dockerfile
     const dockerfileContent = getDockerfileTemplate(targetName, config.port);
-    await fs.writeFile(path.join(targetDir, 'Dockerfile'), dockerfileContent);
+    await writeFormattedFile(
+      path.join(targetDir, 'Dockerfile'),
+      dockerfileContent,
+    );
     console.log(` ✓ Dockerfile created in ${targetDir}`);
 
     // 4. Generate file main.js yang unik di dalam /dist
